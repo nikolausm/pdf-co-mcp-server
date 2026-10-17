@@ -4,6 +4,8 @@ MCP server for PDF.co API integration - enables AI assistants to perform PDF ope
 
 ## Installation
 
+Requires Node.js 20 or newer.
+
 ```bash
 # Clone and install
 git clone https://github.com/nikolausm/pdf-co-mcp-server.git

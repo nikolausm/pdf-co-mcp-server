@@ -9,6 +9,33 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import axios from 'axios';
 
+type ToolArguments = Record<string, unknown>;
+
+function requireString(args: ToolArguments, name: string): string {
+  const value = args[name];
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new McpError(ErrorCode.InvalidParams, `${name} must be a non-empty string`);
+  }
+  return value;
+}
+
+function optionalString(args: ToolArguments, name: string): string | undefined {
+  const value = args[name];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    throw new McpError(ErrorCode.InvalidParams, `${name} must be a string`);
+  }
+  return value;
+}
+
+function requireStringArray(args: ToolArguments, name: string): string[] {
+  const value = args[name];
+  if (!Array.isArray(value) || value.length === 0 || !value.every((item) => typeof item === 'string')) {
+    throw new McpError(ErrorCode.InvalidParams, `${name} must be a non-empty array of strings`);
+  }
+  return value;
+}
+
 class PDFcoServer {
   private server: Server;
   private apiKey: string;
@@ -165,13 +192,15 @@ class PDFcoServer {
       }
 
       try {
-        const { name, arguments: args } = request.params;
+        const { name } = request.params;
+        const args = (request.params.arguments ?? {}) as ToolArguments;
         let result;
 
         switch (name) {
-          case 'pdf_merge':
+          case 'pdf_merge': {
+            const urls = requireStringArray(args, 'urls');
             result = await this.makeApiCall('/pdf/merge', {
-              url: args.urls.join(','),
+              url: urls.join(','),
               name: 'merged.pdf',
             });
             return {
@@ -180,11 +209,14 @@ class PDFcoServer {
                 text: `PDFs merged successfully!\nOutput URL: ${result.url}`,
               }],
             };
+          }
 
-          case 'pdf_split':
+          case 'pdf_split': {
+            const url = requireString(args, 'url');
+            const pages = optionalString(args, 'pages');
             result = await this.makeApiCall('/pdf/split', {
-              url: args.url,
-              pages: args.pages || '',
+              url,
+              pages: pages || '',
             });
             return {
               content: [{
@@ -192,10 +224,11 @@ class PDFcoServer {
                 text: `PDF split successfully!\nOutput URLs:\n${result.urls.join('\n')}`,
               }],
             };
+          }
 
-          case 'pdf_to_text':
+          case 'pdf_to_text': {
             result = await this.makeApiCall('/pdf/convert/to/text', {
-              url: args.url,
+              url: requireString(args, 'url'),
               inline: true,
             });
             return {
@@ -204,10 +237,11 @@ class PDFcoServer {
                 text: result.body || result.text || 'No text extracted',
               }],
             };
+          }
 
-          case 'pdf_to_json':
+          case 'pdf_to_json': {
             result = await this.makeApiCall('/pdf/convert/to/json', {
-              url: args.url,
+              url: requireString(args, 'url'),
               inline: true,
             });
             return {
@@ -216,12 +250,15 @@ class PDFcoServer {
                 text: JSON.stringify(result.body || result, null, 2),
               }],
             };
+          }
 
-          case 'html_to_pdf':
+          case 'html_to_pdf': {
             const data: any = { name: 'output.pdf' };
-            if (args.html) data.html = args.html;
-            else if (args.url) data.url = args.url;
-            else throw new Error('Either html or url must be provided');
+            const html = optionalString(args, 'html');
+            const url = optionalString(args, 'url');
+            if (html) data.html = html;
+            else if (url) data.url = url;
+            else throw new McpError(ErrorCode.InvalidParams, 'Either html or url must be provided');
 
             result = await this.makeApiCall('/pdf/convert/from/html', data);
             return {
@@ -230,8 +267,9 @@ class PDFcoServer {
                 text: `PDF created successfully!\nOutput URL: ${result.url}`,
               }],
             };
+          }
 
-          case 'get_credits_balance':
+          case 'get_credits_balance': {
             const response = await axios.get(
               `${this.baseUrl}/account/balance`,
               { headers: { 'x-api-key': this.apiKey } }
@@ -242,6 +280,7 @@ class PDFcoServer {
                 text: `API Credits Balance:\nAvailable: ${response.data.AvailableCredits}\nUsed: ${response.data.UsedCredits}`,
               }],
             };
+          }
 
           default:
             throw new McpError(
