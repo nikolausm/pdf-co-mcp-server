@@ -11,7 +11,7 @@ test('lists all tools over stdio without making API calls', async (t) => {
     command: process.execPath,
     args: [serverEntry],
     env: {
-      ...process.env,
+      PATH: process.env.PATH,
       PDFCO_API_KEY: 'test-key',
     },
     stderr: 'pipe',

@@ -42,6 +42,12 @@ npm run build
 - `html_to_pdf` - HTML to PDF
 - `get_credits_balance` - Check API credits
 
+## Tests
+
+Run `npm ci --ignore-scripts` and `npm test` for the build and offline MCP tests. All six tools are exercised with an intercepted Axios adapter and synthetic credentials; tests make no PDF.co requests and consume no credits. Real provider integration is not covered by these tests.
+
+CI runs these checks and `npm audit --audit-level=moderate` on Node 20 and 24.
+
 ## License
 
 MIT
